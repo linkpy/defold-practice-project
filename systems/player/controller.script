@@ -1,0 +1,100 @@
+local camera = require "orthographic.camera"
+
+local METER = 1.0 / tonumber(sys.get_config("physics.scale"))
+local LEFT = hash("left")
+local RIGHT = hash("right")
+local DOWN = hash("down")
+local UP = hash("up")
+local FIRE = hash("fire")
+
+
+-- Movement speed of the player.
+go.property("speed", 4)
+
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+
+	self.input_vector = vmath.vector3()
+	self.correction = vmath.vector3()
+
+	self.sprite = go.get_id("sprite")
+end
+
+function final(self)
+end
+
+function update(self, dt)
+	go.set_position(go.get_position() + self.input_vector * self.speed * METER * dt)
+	self.correction = vmath.vector3()
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("contact_point_response") then
+		if message.distance <= 0 then
+			return
+		end
+
+		local proj = vmath.project(self.correction, message.normal * message.distance)
+		if proj < 1 then
+			local comp = (message.distance - message.distance * proj) * message.normal
+			go.set_position(go.get_position() + comp)
+			go.correction = self.correction + comp
+		end
+	end
+end
+
+function on_input(self, action_id, action)
+	if action_id == LEFT then
+		if action.pressed then
+			self.input_vector.x = self.input_vector.x - 1
+			return true
+		end
+		if action.released then
+			self.input_vector.x = self.input_vector.x + 1
+			return true
+		end
+	end
+
+	if action_id == RIGHT then
+		if action.pressed then
+			self.input_vector.x = self.input_vector.x + 1
+			return true
+		end
+		if action.released then
+			self.input_vector.x = self.input_vector.x - 1
+			return true
+		end
+	end
+
+	if action_id == DOWN then
+		if action.pressed then
+			self.input_vector.y = self.input_vector.y - 1
+			return true
+		end
+		if action.released then
+			self.input_vector.y = self.input_vector.y + 1
+			return true
+		end
+	end
+
+	if action_id == UP then
+		if action.pressed then
+			self.input_vector.y = self.input_vector.y + 1
+			return true
+		end
+		if action.released then
+			self.input_vector.y = self.input_vector.y - 1
+			return true
+		end
+	end
+
+	if not action_id then
+		local mouse_position = camera.screen_to_world(hash("/camera"), vmath.vector3(action.x, action.y, 0))
+		local delta = mouse_position - go.get_world_position()
+		go.set_rotation(vmath.quat_rotation_z(math.atan2(delta.y, delta.x)), self.sprite)
+	end
+end
+
+function on_reload(self)
+end
